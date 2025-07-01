@@ -1,7 +1,5 @@
 
 
-
-
 // Smart Door Lock with SRF05, Keypad, LCD, RFID, Servo
 // Cập nhật: SRF05 là công tắc, nhập đúng pass user để mở cửa, nhập pass admin trong thời gian mở cửa để đổi mật khẩu
 
@@ -341,6 +339,7 @@ BLYNK_WRITE(V0)
   else
   {
     Serial.println("→ Yêu cầu đóng cửa từ Blynk");
+    closeDoor();
     doorServo.write(0);
   }
 }
