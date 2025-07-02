@@ -16,8 +16,9 @@
 #include <WiFi.h>
 #include <BlynkSimpleEsp32.h>
 //------------------Blynk---------------
-char ssid[] = "Passio Coffee";
-char pass[] = "19009434";
+char ssid[] = "FPTU_Library";
+char pass[] = "12345678";
+bool remoteControl = false;
 // ---------------- LCD ----------------
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
@@ -109,12 +110,14 @@ String readPassword(bool show = true)
 void closeDoor()
 {
   doorServo.write(0);
+
   doorOpened = false;
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Nhap ma hoac quet");
   lcd.setCursor(0, 1);
   lcd.print("the RFID");
+  remoteControl = false;
 }
 
 void openDoor()
@@ -125,6 +128,7 @@ void openDoor()
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Cua da mo");
+
   lcd.setCursor(0, 1);
   lcd.print("Nhap admin...");
 
@@ -140,24 +144,32 @@ void openDoor()
       {
         if (adminTry == adminPass)
         {
-          lcd.clear();
-          lcd.print("1:Admin 2:User");
-          char choice = 0;
-          while (!choice)
-            choice = keypad.getKey();
+          while (true)
+          {
+            lcd.clear();
+            lcd.print("1:Admin 2:User");
+            lcd.setCursor(0, 1);
+            lcd.print("0:Thoat");
+            char choice = 0;
+            while (!choice)
+              choice = keypad.getKey();
 
-          lcd.clear();
-          lcd.print("Pass moi:");
-          String newPass = readPassword(true);
+            if (choice == '0')
+              break;
 
-          if (choice == '1')
-            adminPass = newPass;
-          else if (choice == '2')
-            userPass = newPass;
+            lcd.clear();
+            lcd.print("Pass moi:");
+            String newPass = readPassword(true);
 
-          lcd.clear();
-          lcd.print("Doi thanh cong!");
-          delay(1500);
+            if (choice == '1')
+              adminPass = newPass;
+            else if (choice == '2')
+              userPass = newPass;
+
+            lcd.clear();
+            lcd.print("Doi thanh cong!");
+            delay(1500);
+          }
           break;
         }
         else
@@ -299,22 +311,7 @@ void loop()
     systemActive = true;
   }
 
-  if (doorOpened)
-  {
-    activeUntil = millis() + ACTIVE_DURATION;
-  }
-
-  if (systemActive)
-  {
-    checkRFID();
-    checkKeypad();
-  }
-
-  if (doorOpened && millis() - doorOpenTime >= DOOR_OPEN_DURATION)
-  {
-    closeDoor();
-  }
-  if (systemActive && millis() > activeUntil && !doorOpened)
+  if (systemActive && millis() > activeUntil && !doorOpened && !remoteControl)
   {
     systemActive = false;
     lcd.noBacklight();
@@ -322,24 +319,55 @@ void loop()
     closeDoor();
   }
 
-  delay(50);
+  checkRFID();
+  checkKeypad();
+
+  if (doorOpened && millis() - doorOpenTime >= DOOR_OPEN_DURATION)
+  {
+    closeDoor();
+  }
+
+  delay(100);
 }
+
+// BLYNK_WRITE(V0)
+// {
+//   int pinValue = param.asInt(); // 1 = UNLOCK, 0 = LOCK
+//   Serial.print("Blynk gửi giá trị V0: ");
+//   Serial.println(pinValue);
+
+//   if (pinValue == 1)
+//   {
+//     Serial.println("→ Yêu cầu mở cửa từ Blynk");
+//     remoteControl = true;
+//     systemActive = true;
+//     openDoor();
+//   }
+//   else
+//   {
+//     Serial.println("→ Yêu cầu đóng cửa từ Blynk");
+//     closeDoor();
+//     remoteControl = false;
+//   }
+// }
 
 BLYNK_WRITE(V0)
 {
-  int pinValue = param.asInt(); // 1 = UNLOCK, 0 = LOCK
-  Serial.print("Blynk gửi giá trị V0: ");
+  int pinValue = param.asInt();
+  Serial.println("===== BLYNK_WRITE V0 GỌI =====");
+  Serial.print("Giá trị nhận từ app: ");
   Serial.println(pinValue);
 
   if (pinValue == 1)
   {
     Serial.println("→ Yêu cầu mở cửa từ Blynk");
+    remoteControl = true;
+    systemActive = true;
     openDoor();
   }
   else
   {
     Serial.println("→ Yêu cầu đóng cửa từ Blynk");
-    closeDoor();
-    doorServo.write(0);
+    closeDoor(); 
   }
 }
